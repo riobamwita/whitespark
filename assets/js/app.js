@@ -11,24 +11,53 @@
   var $$ = function (s, c) { return Array.prototype.slice.call((c || doc).querySelectorAll(s)); };
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
 
-  /* ---------------- Hero background video ---------------- */
+  /* ---------------- Hero background video ----------------
+     iOS Safari (incl. iPhone 8 / Low Power Mode) can refuse muted autoplay.
+     The poster keeps a slow CSS pan as a fallback, and the video is retried
+     on the visitor's first tap, which iOS always accepts. */
   (function heroVideo() {
     var v = $(".hero-video"); if (!v) return;
+    var media = v.parentNode;
     var conn = navigator.connection || {};
     if (reduced || conn.saveData || /(^|-)2g$/.test(conn.effectiveType || "")) return; // poster only
     var mobile = window.matchMedia("(max-aspect-ratio: 3/4)").matches;
+    v.muted = true; v.defaultMuted = true; v.autoplay = true; v.loop = true;
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", ""); v.setAttribute("webkit-playsinline", "");
+    v.playsInline = true;
     v.src = mobile ? v.getAttribute("data-src-mobile") : v.getAttribute("data-src-desktop");
-    v.muted = true;
-    v.addEventListener("playing", function () { v.classList.add("is-playing"); }, { once: true });
-    var p = v.play(); if (p && p.catch) p.catch(function () {});
+    v.load();
+    var started = false, inView = true;
+    function onPlaying() {
+      if (started) return; started = true;
+      v.classList.add("is-playing"); media.classList.add("video-on");
+      unbindGesture();
+    }
+    v.addEventListener("playing", onPlaying);
+    v.addEventListener("timeupdate", function () { if (v.currentTime > 0.05) onPlaying(); });
+    function tryPlay() {
+      if (!inView || doc.hidden) return;
+      var p = v.play(); if (p && p.catch) p.catch(function () { bindGesture(); });
+    }
+    var gestures = ["touchend", "click", "keydown"], bound = false;
+    function kick() { tryPlay(); }
+    function bindGesture() {
+      if (bound || started) return; bound = true;
+      gestures.forEach(function (g) { doc.addEventListener(g, kick, { passive: true }); });
+    }
+    function unbindGesture() {
+      if (!bound) return; bound = false;
+      gestures.forEach(function (g) { doc.removeEventListener(g, kick, { passive: true }); });
+    }
+    tryPlay();
+    v.addEventListener("canplay", function () { if (!started) tryPlay(); }, { once: true });
     if ("IntersectionObserver" in window) {
       new IntersectionObserver(function (e) {
-        if (e[0].isIntersecting) { var q = v.play(); if (q && q.catch) q.catch(function () {}); } else v.pause();
+        inView = e[0].isIntersecting;
+        if (inView) tryPlay(); else v.pause();
       }, { threshold: 0.05 }).observe(v);
     }
-    doc.addEventListener("visibilitychange", function () {
-      if (doc.hidden) v.pause(); else { var q = v.play(); if (q && q.catch) q.catch(function () {}); }
-    });
+    doc.addEventListener("visibilitychange", function () { if (doc.hidden) v.pause(); else tryPlay(); });
+    window.addEventListener("pageshow", function (e) { if (e.persisted) tryPlay(); });
   })();
 
   /* ---------------- IDs & storage ---------------- */
