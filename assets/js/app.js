@@ -217,12 +217,37 @@
   }
 
 
+  /* ---------------- Team profiles: Read profile / Close profile ---------------- */
+  (function teamProfiles() {
+    $$(".team-more").forEach(function (btn) {
+      var card = btn.closest(".team-card"), wrap = $("#" + btn.getAttribute("aria-controls")), lbl = $("span", btn);
+      if (!card || !wrap) return;
+      btn.addEventListener("click", function () {
+        var open = !card.classList.contains("is-open");
+        card.classList.toggle("is-open", open);
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        lbl.textContent = open ? "Close profile" : "Read profile";
+        wrap.style.maxHeight = open ? wrap.scrollHeight + "px" : "";
+        if (!open) {
+          var top = card.getBoundingClientRect().top;
+          if (top < 0) window.scrollBy({ top: top - 90, behavior: reduced ? "auto" : "smooth" });
+        }
+      });
+      addEventListener("resize", function () { if (card.classList.contains("is-open")) wrap.style.maxHeight = wrap.scrollHeight + "px"; }, { passive: true });
+    });
+  })();
+
   /* ---------------- Motion: reveal, live card beams, pointer glow ---------------- */
   function initMotion() {
     $$("[data-stagger]").forEach(function (g) {
       Array.prototype.forEach.call(g.children, function (c, i) { c.style.setProperty("--i", i); });
     });
     var rv = $$(".rv"), cards = $$(".c");
+    /* idle float: stagger phase and tempo per card so the page breathes rather than marches */
+    cards.forEach(function (c, i) {
+      c.style.setProperty("--bd", (-((i * 1.37) % 5.6)).toFixed(2) + "s");
+      c.style.setProperty("--bt", (5.2 + (i % 4) * 0.35).toFixed(2) + "s");
+    });
     if (!("IntersectionObserver" in window)) {
       rv.forEach(function (e) { e.classList.add("in"); }); cards.forEach(function (c) { c.classList.add("live"); }); return;
     }

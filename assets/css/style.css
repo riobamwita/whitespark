@@ -136,6 +136,15 @@ section[id]{scroll-margin-top:var(--nav-h);}
 .rv.in{animation:rise .8s var(--ease) backwards;animation-delay:calc(var(--i,0) * 70ms);}
 @keyframes rise{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:none;}}
 
+/* idle float: every card drifts gently while on screen. Uses the independent `translate`
+   property so it stacks with the hover lift and the reveal rise (both on `transform`).
+   --bd (set in app.js) offsets each card's phase so they never move in unison. */
+@keyframes bob{0%,100%{translate:0 0;}50%{translate:0 -6px;}}
+.c.live{animation:bob var(--bt,5.6s) ease-in-out var(--bd,0s) infinite;}
+.rv.in.c.live{animation:rise .8s var(--ease) backwards,bob var(--bt,5.6s) ease-in-out infinite;animation-delay:calc(var(--i,0) * 70ms),var(--bd,0s);}
+.enq.c.live{animation:none;}
+.rv.in.c.live.is-open{animation-play-state:paused;}
+
 /* ===== ABOUT ===== */
 .about-sec{background:var(--off);}
 .about-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(28px,5vw,64px);align-items:start;margin-top:32px;}
@@ -246,6 +255,18 @@ section[id]{scroll-margin-top:var(--nav-h);}
 .team-body .team-bio:first-child{padding-top:14px;border-top:1px solid var(--line);}
 .team-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
 .team-tag{font-family:var(--cond);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--navy);background:rgba(45,74,122,.08);padding:5px 10px;border-radius:var(--r-btn);}
+.team-grid{align-items:start;}
+.js .team-bio-wrap{overflow:hidden;max-height:112px;transition:max-height .55s var(--ease);
+  -webkit-mask-image:linear-gradient(#000 45%,transparent);mask-image:linear-gradient(#000 45%,transparent);}
+.js .team-card.is-open .team-bio-wrap{-webkit-mask-image:none;mask-image:none;}
+.team-more{display:none;align-items:center;gap:8px;margin:4px 0 16px;padding:7px 14px 7px 15px;cursor:pointer;
+  font-family:var(--cond);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);
+  background:var(--gold-pale);border:1px solid rgba(200,168,75,.55);border-radius:var(--r-btn);transition:background .25s,border-color .25s;}
+.js .team-more{display:inline-flex;}
+.team-more:hover{background:transparent;border-color:var(--gold);}
+.team-more:focus-visible{outline:2px solid var(--gold);outline-offset:3px;}
+.team-more svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s var(--ease);}
+.team-card.is-open .team-more svg{transform:rotate(180deg);}
 .adv{margin-top:var(--gap);background:var(--off);border-radius:var(--r-panel);padding:clamp(22px,3.4vw,36px);display:grid;grid-template-columns:1fr 2fr;gap:clamp(12px,3vw,40px);align-items:center;}
 .adv .sec-label{margin-bottom:8px;}
 .adv-title{font-family:var(--serif);font-size:28px;font-weight:300;color:var(--ink);line-height:1.25;}
