@@ -1,0 +1,19 @@
+# Netlify / Cloudflare Pages
+https://whitesparkconsulting.com/*  https://www.whitesparkconsulting.com/:splat  301!
+/index.html                     /               301
+/white_spark_consulting_v2.html /               301
+/about      /#about     301
+/services   /#services  301
+/sme        /#sme       301
+/ai         /#ai        301
+/team       /#team      301
+/process    /#process   301
+/markets    /#ea        301
+/east-africa /#ea       301
+/why        /#why       301
+/contact    /#contact   301
+/profile    /assets/docs/WhiteSparkConsulting_Profile_2025.pdf  302
+/privacy    /privacy.html  301
+/sitemap    /sitemap.html  301
+/admin      /admin/        301
+/*          /404.html   404

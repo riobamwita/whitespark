@@ -1,0 +1,55 @@
+# White Spark Consulting — Apache / cPanel hosting
+Options -Indexes
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+
+RewriteEngine On
+
+# Force HTTPS and www
+RewriteCond %{HTTPS} off [OR]
+RewriteCond %{HTTP_HOST} ^whitesparkconsulting\.com$ [NC]
+RewriteRule ^(.*)$ https://www.whitesparkconsulting.com/$1 [R=301,L]
+
+# /index.html -> /
+RewriteCond %{THE_REQUEST} \s/index\.html[\s?] [NC]
+RewriteRule ^index\.html$ / [R=301,L]
+
+# Legacy profile page -> home
+RewriteRule ^white_spark_consulting_v2\.html$ / [R=301,L,NC]
+
+# Short links to sections
+RewriteRule ^about/?$        /#about    [R=301,NE,L,NC]
+RewriteRule ^services/?$     /#services [R=301,NE,L,NC]
+RewriteRule ^sme/?$          /#sme      [R=301,NE,L,NC]
+RewriteRule ^ai/?$           /#ai       [R=301,NE,L,NC]
+RewriteRule ^team/?$         /#team     [R=301,NE,L,NC]
+RewriteRule ^process/?$      /#process  [R=301,NE,L,NC]
+RewriteRule ^markets/?$      /#ea       [R=301,NE,L,NC]
+RewriteRule ^east-africa/?$  /#ea       [R=301,NE,L,NC]
+RewriteRule ^why/?$          /#why      [R=301,NE,L,NC]
+RewriteRule ^contact/?$      /#contact  [R=301,NE,L,NC]
+RewriteRule ^profile/?$      /assets/docs/WhiteSparkConsulting_Profile_2025.pdf [R=302,L,NC]
+RewriteRule ^privacy/?$      /privacy.html [R=301,L,NC]
+RewriteRule ^sitemap/?$      /sitemap.html [R=301,L,NC]
+RewriteRule ^admin$          /admin/ [R=301,L,NC]
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  <FilesMatch "\.(css|js|webp|jpg|png|svg|pdf)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <If "%{REQUEST_URI} =~ m#^/admin/#">
+    Header set X-Robots-Tag "noindex, nofollow"
+  </If>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml application/xml text/plain application/manifest+json
+</IfModule>
+AddType application/manifest+json .webmanifest

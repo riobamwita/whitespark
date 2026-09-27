@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en-KE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin | White Spark Consulting</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0D1B33">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+<!-- SIGN IN -->
+<section class="auth" id="auth" hidden>
+  <div class="auth-card">
+    <div class="brand"><svg viewBox="0 0 56 56" width="34" height="34" fill="none" aria-hidden="true"><polygon points="28,3 35,21 54,21 40,32 45,51 28,40 11,51 16,32 2,21 21,21" stroke="#C8A84B" stroke-width="1.6"/><circle cx="28" cy="28" r="3.5" fill="#C8A84B"/></svg><div>White <span>Spark</span><small>Admin</small></div></div>
+
+    <form id="fLogin" class="auth-form" novalidate>
+      <h1>Sign in</h1>
+      <label class="fld"><span>Email</span><input name="email" type="email" autocomplete="username" inputmode="email" required></label>
+      <label class="fld"><span>Password</span><input name="password" type="password" autocomplete="current-password" required minlength="6"></label>
+      <p class="msg" role="alert"></p>
+      <button class="btn gold wide" type="submit">Sign in</button>
+      <button class="link" type="button" data-go="fForgot">Forgot password?</button>
+    </form>
+
+    <form id="fForgot" class="auth-form" novalidate hidden>
+      <h1>Reset password</h1>
+      <p class="hint">Enter your admin email. We'll send a link to set a new password.</p>
+      <label class="fld"><span>Email</span><input name="email" type="email" autocomplete="username" inputmode="email" required></label>
+      <p class="msg" role="alert"></p>
+      <button class="btn gold wide" type="submit">Send reset link</button>
+      <button class="link" type="button" data-go="fLogin">Back to sign in</button>
+    </form>
+
+    <form id="fNewPass" class="auth-form" novalidate hidden>
+      <h1>Set a new password</h1>
+      <label class="fld"><span>New password</span><input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+      <label class="fld"><span>Confirm password</span><input name="confirm" type="password" autocomplete="new-password" required minlength="8"></label>
+      <p class="msg" role="alert"></p>
+      <button class="btn gold wide" type="submit">Save password</button>
+    </form>
+    <a class="back" href="/">← whitesparkconsulting.com</a>
+  </div>
+</section>
+
+<!-- APP -->
+<div class="app" id="app" hidden>
+  <aside class="side">
+    <div class="brand"><svg viewBox="0 0 56 56" width="28" height="28" fill="none" aria-hidden="true"><polygon points="28,3 35,21 54,21 40,32 45,51 28,40 11,51 16,32 2,21 21,21" stroke="#C8A84B" stroke-width="1.8"/><circle cx="28" cy="28" r="3.5" fill="#C8A84B"/></svg><div>White <span>Spark</span><small>Admin</small></div></div>
+    <nav class="tabs" aria-label="Admin sections">
+      <a href="#overview" data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 4v4h6V4z"/></svg><span>Overview</span></a>
+      <a href="#enquiries" data-view="enquiries"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg><span>Enquiries</span><b class="badge" id="unreadBadge" hidden></b></a>
+      <a href="#analytics" data-view="analytics"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Analytics</span></a>
+      <a href="#settings" data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.7 1.7 0 009 19.4a1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg><span>Settings</span></a>
+    </nav>
+    <div class="me">
+      <div class="me-id"><b id="meEmail"></b><small id="meRole"></small></div>
+      <button class="btn line sm" type="button" id="signOut">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <h1 id="viewTitle">Overview</h1>
+      <div class="top-r">
+        <span class="live-dot" id="liveDot" title="Auto-refreshing"></span>
+        <a class="btn line sm" href="/" target="_blank" rel="noopener">View site</a>
+        <button class="btn line sm only-m" type="button" id="signOutM">Sign out</button>
+      </div>
+    </header>
+    <div class="view" id="view" tabindex="-1"></div>
+  </main>
+</div>
+
+<!-- Enquiry drawer -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Enquiry details" hidden tabindex="-1"></aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/assets/js/config.js"></script>
+<script src="/admin/admin.js" defer></script>
+</body>
+</html>
