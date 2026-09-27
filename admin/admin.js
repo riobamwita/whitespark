@@ -78,15 +78,46 @@
   }
   function rpc(name, args) { return api("/rest/v1/rpc/" + name, { method: "POST", body: args || {} }); }
 
+  /* ---------- password visibility ---------- */
+  var EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0112 5c6.4 0 10 7 10 7a17.6 17.6 0 01-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.9 9.9 0 005.4-1.6M9.9 9.9a3 3 0 004.2 4.2"/></svg>';
+  function setPeek(btn, show) {
+    var i = btn.previousElementSibling; i.type = show ? "text" : "password";
+    btn.innerHTML = show ? EYE_OFF : EYE;
+    btn.setAttribute("aria-pressed", show ? "true" : "false");
+    btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    btn.title = show ? "Hide password" : "Show password";
+  }
+  function hideAllPeeks(scope) { $$(".peek", scope).forEach(function (b) { setPeek(b, false); }); }
+  function initPeek() {
+    $$('input[type="password"]').forEach(function (i) {
+      if (i.parentNode.classList.contains("pw")) return;
+      var wrap = doc.createElement("span"); wrap.className = "pw";
+      i.parentNode.insertBefore(wrap, i); wrap.appendChild(i);
+      var b = doc.createElement("button"); b.type = "button"; b.className = "peek";
+      b.setAttribute("aria-controls", i.id || (i.id = "pw-" + Math.random().toString(36).slice(2, 8)));
+      wrap.appendChild(b); setPeek(b, false);
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.addEventListener("click", function (e) {
+        e.preventDefault(); var pos = i.selectionStart;
+        setPeek(b, i.type === "password"); i.focus();
+        try { i.setSelectionRange(pos, pos); } catch (_) {}
+      });
+    });
+    $$("form").forEach(function (f) { f.addEventListener("reset", function () { hideAllPeeks(f); }); f.addEventListener("submit", function () { hideAllPeeks(f); }); });
+  }
+
   /* ---------- auth screens ---------- */
   function showAuth(which) {
     $("#app").hidden = true; $("#auth").hidden = false;
     ["fLogin", "fForgot", "fNewPass"].forEach(function (id) { $("#" + id).hidden = id !== which; });
+    hideAllPeeks($("#auth"));
     var f = $("#" + which); $(".msg", f).textContent = ""; var i = $("input", f); if (i) setTimeout(function () { i.focus(); }, 50);
   }
   function busy(btn, on, txt) { btn.disabled = on; if (on) { btn.dataset.t = btn.textContent; btn.textContent = txt || "Working…"; } else if (btn.dataset.t) btn.textContent = btn.dataset.t; }
 
   function initAuth() {
+    initPeek();
     $$("[data-go]").forEach(function (b) { b.addEventListener("click", function () { showAuth(b.getAttribute("data-go")); }); });
     $("#fLogin").addEventListener("submit", function (e) {
       e.preventDefault(); var f = e.target, m = $(".msg", f), b = $("button[type=submit]", f);
