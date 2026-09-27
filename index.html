@@ -25,6 +25,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://blveufcpnigfhvrphkhv.supabase.co" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/img/hero-poster.jpg" media="(min-aspect-ratio: 3/4)">
+<link rel="preload" as="image" href="assets/img/hero-poster-mobile.jpg" media="(max-aspect-ratio: 3/4)">
 <link rel="stylesheet" href="assets/css/style.css">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "ProfessionalService", "name": "White Spark Consulting", "alternateName": "White Spark", "url": "https://www.whitesparkconsulting.com/", "logo": "https://www.whitesparkconsulting.com/favicon.svg", "image": "https://www.whitesparkconsulting.com/assets/img/og-image.jpg", "description": "Organisational transformation advisory, AI consultancy and SME growth advisory across East Africa.", "email": "info@whitesparkconsulting.com", "telephone": "+254725145760", "address": {"@type": "PostalAddress", "addressLocality": "Nairobi", "addressCountry": "KE"}, "areaServed": ["Kenya", "Rwanda", "Uganda", "Tanzania", "Ethiopia", "South Sudan", "Democratic Republic of the Congo", "Mozambique"], "slogan": "Where Clarity Meets Transformation.", "founder": {"@type": "Person", "name": "William Ndumia"}, "employee": [{"@type": "Person", "name": "William Ndumia", "jobTitle": "Lead Consultant & Founding Partner", "sameAs": "https://www.linkedin.com/in/william-ndumia-b1385337/"}, {"@type": "Person", "name": "Evans Otieno Okoth", "jobTitle": "Consultant", "sameAs": "https://www.linkedin.com/in/evans-otieno-okoth-46592884/"}], "sameAs": ["https://www.linkedin.com/company/white-spark-consulting"]}</script>
 </head>
@@ -81,6 +83,12 @@
 
 <!-- HERO -->
 <section class="hero">
+  <div class="hero-media" aria-hidden="true">
+    <video class="hero-video" muted loop playsinline preload="none"
+      data-src-desktop="assets/video/hero-1080.mp4"
+      data-src-mobile="assets/video/hero-mobile.mp4"></video>
+  </div>
+  <div class="hero-shade" aria-hidden="true"></div>
   <div class="hero-bg"></div>
   <div class="hero-grid"></div>
   <svg class="hero-lines" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">

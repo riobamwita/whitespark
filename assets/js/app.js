@@ -11,6 +11,26 @@
   var $$ = function (s, c) { return Array.prototype.slice.call((c || doc).querySelectorAll(s)); };
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
 
+  /* ---------------- Hero background video ---------------- */
+  (function heroVideo() {
+    var v = $(".hero-video"); if (!v) return;
+    var conn = navigator.connection || {};
+    if (reduced || conn.saveData || /(^|-)2g$/.test(conn.effectiveType || "")) return; // poster only
+    var mobile = window.matchMedia("(max-aspect-ratio: 3/4)").matches;
+    v.src = mobile ? v.getAttribute("data-src-mobile") : v.getAttribute("data-src-desktop");
+    v.muted = true;
+    v.addEventListener("playing", function () { v.classList.add("is-playing"); }, { once: true });
+    var p = v.play(); if (p && p.catch) p.catch(function () {});
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (e) {
+        if (e[0].isIntersecting) { var q = v.play(); if (q && q.catch) q.catch(function () {}); } else v.pause();
+      }, { threshold: 0.05 }).observe(v);
+    }
+    doc.addEventListener("visibilitychange", function () {
+      if (doc.hidden) v.pause(); else { var q = v.play(); if (q && q.catch) q.catch(function () {}); }
+    });
+  })();
+
   /* ---------------- IDs & storage ---------------- */
   function uuid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
