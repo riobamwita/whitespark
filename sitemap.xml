@@ -2,21 +2,63 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.whitesparkconsulting.com/</loc>
-    <lastmod>2026-09-26</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.whitesparkconsulting.com/about/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.whitesparkconsulting.com/services/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.whitesparkconsulting.com/sme/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.whitesparkconsulting.com/ai-advisory/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.whitesparkconsulting.com/team/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
     <image:image><image:loc>https://www.whitesparkconsulting.com/assets/img/william-ndumia.jpg</image:loc><image:title>William Ndumia, Lead Consultant and Founding Partner</image:title></image:image>
     <image:image><image:loc>https://www.whitesparkconsulting.com/assets/img/evans-okoth.jpg</image:loc><image:title>Evans Otieno Okoth, Consultant</image:title></image:image>
   </url>
   <url>
+    <loc>https://www.whitesparkconsulting.com/experts/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.whitesparkconsulting.com/east-africa/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://www.whitesparkconsulting.com/privacy.html</loc>
-    <lastmod>2026-09-26</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.whitesparkconsulting.com/sitemap.html</loc>
-    <lastmod>2026-09-26</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>

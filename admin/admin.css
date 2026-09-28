@@ -238,3 +238,24 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background
 @media (max-width:360px){ .kpi{aspect-ratio:auto;min-height:100px;} }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;}}
 @media (max-width:860px){.chart .ax{font-size:20px;}.chart .ln,.chart .ln2{stroke-width:3.5;}}
+/* ----- Experts + company profile (v3) ----- */
+.s-reviewing{background:rgba(74,122,181,.14);color:var(--navy);}
+.s-shortlisted{background:rgba(27,94,82,.14);color:var(--teal);}
+.s-approved{background:rgba(47,125,91,.16);color:var(--green);}
+.s-rejected{background:rgba(13,27,51,.08);color:var(--muted);}
+.filters.xf{grid-template-columns:1.8fr 1fr 1fr auto;}
+.item.xp{grid-template-columns:14px 1.3fr 1.4fr 110px 104px 92px;}
+.item .rt{font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.doc-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--off);}
+.doc-row svg{width:30px;height:30px;flex-shrink:0;fill:none;stroke:var(--gold);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+.doc-row .who{display:flex;flex-direction:column;min-width:0;}
+.doc-row b{font-weight:600;font-size:14px;color:var(--ink);overflow-wrap:anywhere;}
+.doc-row small{font-size:12.5px;color:var(--light);}
+.doc-row a{margin-left:auto;}
+.up{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
+.up .fld{flex:1 1 240px;}
+.up input[type=file]{padding:10px;background:var(--card);}
+.muted{font-size:14px;color:var(--muted);max-width:640px;}
+@media (max-width:1100px){ .item.xp{grid-template-columns:14px 1.2fr 1.2fr 100px 84px;} .item.xp .sv{display:none;} }
+@media (max-width:640px){ .filters.xf{grid-template-columns:1fr 1fr;} .filters.xf .q{grid-column:1/-1;} }
+@media (max-width:860px){ .item.xp{grid-template-columns:10px 1fr auto;} .item.xp .rt,.item.xp .sv{display:none;} .item.xp .ms{white-space:nowrap;} }

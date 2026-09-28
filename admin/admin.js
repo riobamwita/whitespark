@@ -1,6 +1,7 @@
 /* White Spark Consulting — admin (no dependencies)
    Supabase Auth + REST + RPC: admin_live, admin_enquiry_stats, admin_analytics, purge_old_analytics
-   Tables: contact_submissions, enquiry_activity, admin_users · Bucket: contact-attachments */
+   Tables: contact_submissions, enquiry_activity, admin_users, expert_applications, site_settings
+   Buckets: contact-attachments, expert-cvs (private), site-assets (public: company profile) */
 (function () {
   "use strict";
   var CFG = window.WS_CONFIG || {}, URL_ = CFG.supabaseUrl, KEY = CFG.anonKey, BUCKET = CFG.attachmentBucket || "contact-attachments";
@@ -8,6 +9,8 @@
   var doc = document, $ = function (s, c) { return (c || doc).querySelector(s); }, $$ = function (s, c) { return Array.prototype.slice.call((c || doc).querySelectorAll(s)); };
   var session = null, me = { email: "", role: "", canEdit: false }, timer = null, current = "overview";
   var STATUSES = ["new", "contacted", "qualified", "won", "closed", "spam"], PRIORITIES = ["low", "normal", "high"];
+  var XSTATUSES = ["new", "reviewing", "shortlisted", "approved", "rejected"], CV_BUCKET = "expert-cvs", ASSETS = "site-assets";
+  var DEFAULT_PROFILE = "/assets/docs/WhiteSparkConsulting_Profile_2025.pdf";
 
   /* ---------- utils ---------- */
   function esc(v) { return v == null ? "" : String(v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -161,7 +164,7 @@
   }
 
   /* ---------- shell ---------- */
-  var TITLES = { overview: "Overview", enquiries: "Enquiries", analytics: "Analytics", settings: "Settings" };
+  var TITLES = { overview: "Overview", enquiries: "Enquiries", experts: "Experts", analytics: "Analytics", settings: "Settings" };
   function boot() {
     return fresh().then(function () {
       var uid = session.user && session.user.id;
@@ -182,11 +185,14 @@
     $("#viewTitle").textContent = TITLES[v]; doc.title = TITLES[v] + " | White Spark Admin";
     $("#liveDot").classList.toggle("off", v !== "overview");
     var view = $("#view"); view.style.animation = "none"; void view.offsetWidth; view.style.animation = "";
-    ({ overview: vOverview, enquiries: vEnquiries, analytics: vAnalytics, settings: vSettings })[v](view);
+    ({ overview: vOverview, enquiries: vEnquiries, experts: vExperts, analytics: vAnalytics, settings: vSettings })[v](view);
   }
   function refreshBadge() {
     api("/rest/v1/contact_submissions?select=id&read_at=is.null&status=neq.spam&limit=1", { prefer: "count=exact" })
       .then(function (r) { var n = (r && r.__total) || 0, b = $("#unreadBadge"); b.hidden = !n; b.textContent = n > 99 ? "99+" : n; })
+      .catch(function () {});
+    api("/rest/v1/expert_applications?select=id&read_at=is.null&limit=1", { prefer: "count=exact" })
+      .then(function (r) { var n = (r && r.__total) || 0, b = $("#expertBadge"); b.hidden = !n; b.textContent = n > 99 ? "99+" : n; })
       .catch(function () {});
   }
   function fail(el, err) { el.innerHTML = '<div class="card empty">' + esc(err.message || "Something went wrong.") + ' <button class="link" type="button" data-retry>Try again</button></div>'; $("[data-retry]", el).addEventListener("click", route); }
@@ -316,6 +322,7 @@
     var d = $("#drawer"); if (d.hidden) return;
     d.hidden = true; $("#scrim").hidden = true; doc.body.style.overflow = "";
     if (location.hash.indexOf("#enquiries/") === 0) history.replaceState(null, "", "#enquiries");
+    if (location.hash.indexOf("#experts/") === 0) history.replaceState(null, "", "#experts");
     if (lastFocus) lastFocus.focus();
   }
   function openEnquiry(id) {
@@ -390,6 +397,126 @@
     });
   }
 
+  /* ---------- experts ---------- */
+  var xq = { search: "", status: "", page: 0, size: 25 };
+  function xName(r) { return [r.salutation, r.first_name, r.last_name].filter(Boolean).join(" "); }
+  function xRate(r) { return r.hourly_rate != null ? esc(r.rate_currency) + " " + num(r.hourly_rate) + "/hr" : ""; }
+  function xPhone(cc, n) { return n ? cc + " " + n : ""; }
+  function xQuery(forExport) {
+    var p = ["select=*", "order=created_at.desc"];
+    if (xq.status) p.push("status=eq." + xq.status);
+    var s = xq.search.replace(/[,()*%\\]/g, " ").trim();
+    if (s) { var v = encodeURIComponent("*" + s + "*"); p.push("or=(first_name.ilike." + v + ",last_name.ilike." + v + ",email.ilike." + v + ",sector.ilike." + v + ",work_history.ilike." + v + ")"); }
+    if (!forExport) { p.push("limit=" + xq.size); p.push("offset=" + xq.page * xq.size); } else p.push("limit=5000");
+    return "/rest/v1/expert_applications?" + p.join("&");
+  }
+  function vExperts(el) {
+    el.innerHTML = '<div class="filters xf">' +
+      '<label class="fld q"><span>Search</span><input type="search" id="xq" placeholder="Name, email, sector or work history" value="' + esc(xq.search) + '"></label>' +
+      '<label class="fld"><span>Status</span><select id="xs">' + opt(XSTATUSES, xq.status, "All") + "</select></label>" +
+      '<span></span><button class="btn line exp" type="button" id="xx">Export CSV</button></div><div id="xlst"></div>';
+    var t;
+    $("#xq").addEventListener("input", function (e) { clearTimeout(t); t = setTimeout(function () { xq.search = e.target.value; xq.page = 0; xList(); }, 300); });
+    $("#xs").addEventListener("change", function (e) { xq.status = e.target.value; xq.page = 0; xList(); });
+    $("#xx").addEventListener("click", xExport);
+    xList();
+    var hid = (location.hash.split("/")[1] || ""); if (hid) openExpert(hid);
+  }
+  function xList() {
+    var box = $("#xlst"); if (!box) return;
+    box.innerHTML = '<div class="skel" style="height:300px"></div>';
+    api(xQuery(), { prefer: "count=exact" }).then(function (rows) {
+      var total = Math.max((rows && rows.__total) || 0, rows ? xq.page * xq.size + rows.length : 0);
+      if (!rows || !rows.length) { box.innerHTML = '<div class="list"><div class="empty">' + (xq.search || xq.status ? "No applications match these filters." : "No expert applications yet. They'll appear here when someone uses Join as an Expert on the website.") + "</div></div>"; return; }
+      box.innerHTML = '<div class="list">' + rows.map(function (r) {
+        return '<button type="button" class="item xp' + (r.read_at ? "" : " unread") + '" data-id="' + r.id + '"><span class="dot"></span>' +
+          '<span class="who"><span class="nm">' + esc(xName(r)) + '</span><span class="sub">' + esc(r.email) + "</span></span>" +
+          '<span class="ms">' + esc(r.sector || "Sector not given") + "</span>" +
+          '<span class="rt sv">' + xRate(r) + "</span>" +
+          '<span class="st">' + chip(r.status) + "</span>" +
+          '<span class="dt">' + when(r.created_at) + "</span></button>";
+      }).join("") + "</div>" +
+        '<div class="pager"><span>' + (xq.page * xq.size + 1) + "–" + Math.min(total, (xq.page + 1) * xq.size) + " of " + num(total) + '</span><div><button class="btn line sm" id="xpv"' + (xq.page ? "" : " disabled") + '>Previous</button><button class="btn line sm" id="xnx"' + ((xq.page + 1) * xq.size < total ? "" : " disabled") + ">Next</button></div></div>";
+      $$(".item", box).forEach(function (b) { b.addEventListener("click", function () { openExpert(b.getAttribute("data-id")); }); });
+      $("#xpv").addEventListener("click", function () { xq.page--; xList(); window.scrollTo(0, 0); });
+      $("#xnx").addEventListener("click", function () { xq.page++; xList(); window.scrollTo(0, 0); });
+    }).catch(function (e) { fail(box, e); });
+  }
+  function xExport() {
+    var b = $("#xx"); busy(b, true, "Exporting…");
+    api(xQuery(true)).then(function (rows) {
+      var cols = ["created_at", "status", "salutation", "first_name", "last_name", "email", "country_code", "primary_phone", "secondary_phone", "sector", "hourly_rate", "rate_currency", "linkedin_url", "work_history", "admin_notes", "cv_path"];
+      var csv = cols.join(",") + "\n" + (rows || []).map(function (r) { return cols.map(function (c) { var v = r[c] == null ? "" : String(r[c]); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+      var a = doc.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+      a.download = "white-spark-experts-" + fmt(Date.now(), { year: "numeric", month: "2-digit", day: "2-digit" }).split("/").reverse().join("-") + ".csv";
+      doc.body.appendChild(a); a.click(); a.remove(); toast("Exported " + num((rows || []).length) + " applications.");
+    }).catch(function (e) { toast(e.message, true); }).then(function () { busy(b, false); });
+  }
+  function signed(bucket, path, download) {
+    return api("/storage/v1/object/sign/" + bucket + "/" + path.split("/").map(encodeURIComponent).join("/"), { method: "POST", body: { expiresIn: 300 } })
+      .then(function (r) { return URL_ + "/storage/v1" + r.signedURL + (download ? "&download=" + encodeURIComponent(download) : ""); });
+  }
+  function openExpert(id) {
+    lastFocus = doc.activeElement;
+    var d = $("#drawer"); d.hidden = false; $("#scrim").hidden = false; doc.body.style.overflow = "hidden";
+    d.innerHTML = '<div class="dr-head"><div><h2>Loading…</h2></div>' + xBtn() + '</div><div class="dr-body"><div class="skel"></div></div>';
+    $(".x", d).addEventListener("click", closeDrawer); d.focus();
+    history.replaceState(null, "", "#experts/" + id);
+    api("/rest/v1/expert_applications?select=*&id=eq." + id).then(function (rows) {
+      var e = rows && rows[0]; if (!e) throw new Error("That application no longer exists.");
+      renderExpert(e);
+      if (!e.read_at && me.canEdit) api("/rest/v1/expert_applications?id=eq." + id, { method: "PATCH", body: { read_at: new Date().toISOString() }, prefer: "return=minimal" })
+        .then(function () { refreshBadge(); var it = $('.item[data-id="' + id + '"]'); if (it) it.classList.remove("unread"); }).catch(function () {});
+    }).catch(function (err) { $(".dr-body", d).innerHTML = '<div class="card empty">' + esc(err.message) + "</div>"; $("h2", d).textContent = "Application"; });
+  }
+  function renderExpert(e) {
+    var d = $("#drawer"), ro = me.canEdit ? "" : " disabled";
+    var tel = (e.country_code + e.primary_phone).replace(/[^\d+]/g, ""), wa = tel.replace(/^\+/, "");
+    var subj = encodeURIComponent("Your White Spark expert network application");
+    var greet = encodeURIComponent("Dear " + [e.salutation, e.last_name].join(" ") + ",\n\nThank you for applying to join the White Spark Consulting expert network");
+    var ext = (e.cv_path.match(/\.([a-z0-9]+)$/i) || ["", "pdf"])[1].toLowerCase();
+    var cvName = (e.first_name + "-" + e.last_name + "-CV." + ext).replace(/[^A-Za-z0-9._-]+/g, "-");
+    var dl = [["Email", '<a href="mailto:' + esc(e.email) + '">' + esc(e.email) + "</a>"], ["Primary phone", esc(xPhone(e.country_code, e.primary_phone))], ["Secondary phone", esc(xPhone(e.country_code, e.secondary_phone))],
+      ["Hourly rate", xRate(e)], ["Sector", esc(e.sector)], ["LinkedIn", e.linkedin_url ? '<a href="' + esc(e.linkedin_url) + '" target="_blank" rel="noopener">' + esc(e.linkedin_url.replace(/^https?:\/\/(www\.)?/, "")) + "</a>" : ""],
+      ["Received", full(e.created_at)], ["Came from", esc(e.source_path)]]
+      .filter(function (x) { return x[1]; }).map(function (x) { return "<dt>" + x[0] + "</dt><dd>" + x[1] + "</dd>"; }).join("");
+    d.innerHTML = '<div class="dr-head"><div><h2>' + esc(xName(e)) + "</h2><p>" + esc(e.sector || e.email) + " · " + when(e.created_at) + "</p></div>" + xBtn() + "</div>" +
+      '<div class="dr-body">' +
+      '<div class="acts"><button class="btn gold sm" type="button" id="xcv">Download CV</button><a class="btn line sm" href="mailto:' + esc(e.email) + "?subject=" + subj + "&body=" + greet + '">Email</a>' +
+      '<a class="btn line sm" href="tel:' + esc(tel) + '">Call</a><a class="btn line sm" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener">WhatsApp</a></div>' +
+      '<div class="card"><h2>Details</h2><dl class="dl">' + dl + "</dl></div>" +
+      '<div class="card"><h2>Work history</h2><div class="msgbox">' + esc(e.work_history) + "</div></div>" +
+      '<div class="card"><h2>Review' + (me.canEdit ? "" : " <small>view-only account</small>") + '</h2><div class="edit">' +
+      '<label class="fld full"><span>Status</span><select id="xS"' + ro + ">" + opt(XSTATUSES, e.status) + "</select></label>" +
+      '<label class="fld full"><span>Internal notes</span><textarea id="xN" maxlength="5000" placeholder="Vetting notes, references, suitable mandates…"' + ro + ">" + esc(e.admin_notes) + "</textarea></label>" +
+      (me.canEdit ? '<div class="full acts"><button class="btn gold" type="button" id="xSave">Save changes</button><button class="btn line" type="button" id="xUnread">Mark unread</button><button class="btn danger" type="button" id="xDel" style="margin-left:auto">Delete</button></div>' : "") +
+      "</div></div></div>";
+    $(".x", d).addEventListener("click", closeDrawer);
+    $("#xcv").addEventListener("click", function () {
+      var w = window.open("", "_blank");
+      signed(CV_BUCKET, e.cv_path, cvName).then(function (u) { if (w) w.location = u; else location.href = u; })
+        .catch(function (err) { if (w) w.close(); toast(err.message, true); });
+    });
+    if (!me.canEdit) return;
+    $("#xSave").addEventListener("click", function () {
+      var b = this; busy(b, true, "Saving…");
+      api("/rest/v1/expert_applications?id=eq." + e.id, { method: "PATCH", body: { status: $("#xS").value, admin_notes: $("#xN").value.trim() || null }, prefer: "return=minimal" })
+        .then(function () { toast("Saved."); xList(); openExpert(e.id); })
+        .catch(function (err) { toast(err.message, true); busy(b, false); });
+    });
+    $("#xUnread").addEventListener("click", function () {
+      api("/rest/v1/expert_applications?id=eq." + e.id, { method: "PATCH", body: { read_at: null }, prefer: "return=minimal" })
+        .then(function () { toast("Marked unread."); closeDrawer(); xList(); refreshBadge(); }).catch(function (err) { toast(err.message, true); });
+    });
+    $("#xDel").addEventListener("click", function () {
+      if (!confirm("Delete the application from " + xName(e) + "? This removes it and the CV permanently.")) return;
+      api("/storage/v1/object/" + CV_BUCKET, { method: "DELETE", body: { prefixes: [e.cv_path] } }).catch(function () {})
+        .then(function () { return api("/rest/v1/expert_applications?id=eq." + e.id, { method: "DELETE", prefer: "return=minimal" }); })
+        .then(function () { toast("Application deleted."); closeDrawer(); xList(); refreshBadge(); })
+        .catch(function (err) { toast(err.message, true); });
+    });
+  }
+
   /* ---------- analytics ---------- */
   var range = "30d";
   var RANGES = { "24h": ["24 hours", 1], "7d": ["7 days", 7], "30d": ["30 days", 30], "90d": ["90 days", 90], "365d": ["12 months", 365] };
@@ -429,10 +556,17 @@
   function vSettings(el) {
     el.innerHTML = '<div class="grid g2"><div class="card"><h2>Your account</h2><dl class="dl"><dt>Email</dt><dd>' + esc(me.email) + "</dd><dt>Role</dt><dd>" + esc(cap(me.role)) + (me.canEdit ? "" : " (view only)") +
       '</dd></dl><div class="acts sp"><button class="btn line sm" type="button" id="chpw">Change password</button></div></div>' +
-      (me.canEdit ? '<div class="card sp"><h2>Data retention</h2><p style="font-size:14px;color:var(--muted);max-width:640px">Visit and click records older than the period below are deleted. Cookie choices are kept for at least two years. Enquiries are never touched.</p><div class="acts sp" style="align-items:end"><label class="fld" style="max-width:220px"><span>Keep analytics for</span><select id="keep"><option value="395" selected>13 months</option><option value="180">6 months</option><option value="90">90 days</option></select></label><button class="btn danger" type="button" id="purge">Delete older records</button></div></div>' : "");
+      '<div class="card"><h2>Admin team</h2><div class="rows" id="team"><div class="skel" style="height:60px"></div></div></div></div>' +
+      '<div class="card sp"><h2>Company profile</h2><p class="muted">This is the PDF behind every “Download Profile” and “Company Profile” link on the website. Upload a new version to replace it immediately.</p>' +
+      '<div class="sp" id="profNow"><div class="skel" style="height:58px"></div></div>' +
+      (me.canEdit ? '<div class="up sp"><label class="fld"><span>New profile (PDF, up to 15 MB)</span><input type="file" id="profFile" accept="application/pdf,.pdf"></label>' +
+        '<button class="btn gold" type="button" id="profUp">Upload and publish</button><button class="btn line" type="button" id="profReset" hidden>Restore original</button></div>' : "") +
+      "</div>" +
+      (me.canEdit ? '<div class="card sp"><h2>Data retention</h2><p style="font-size:14px;color:var(--muted);max-width:640px">Visit and click records older than the period below are deleted. Cookie choices are kept for at least two years. Enquiries and expert applications are never touched.</p><div class="acts sp" style="align-items:end"><label class="fld" style="max-width:220px"><span>Keep analytics for</span><select id="keep"><option value="395" selected>13 months</option><option value="180">6 months</option><option value="90">90 days</option></select></label><button class="btn danger" type="button" id="purge">Delete older records</button></div></div>' : "");
     api("/rest/v1/admin_users?select=email,role,created_at&order=created_at").then(function (rows) {
-      $("#team").innerHTML = (rows || []).map(function (r) { return '<div class="row"><span class="l">' + esc(r.email) + '</span><span class="r">' + esc(cap(r.role)) + "</span></div>"; }).join("") || '<div class="empty">No admins listed.</div>';
-    }).catch(function (e) { $("#team").innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; });
+      var t = $("#team"); if (!t) return;
+      t.innerHTML = (rows || []).map(function (r) { return '<div class="row"><span class="l">' + esc(r.email) + '</span><span class="r">' + esc(cap(r.role)) + "</span></div>"; }).join("") || '<div class="empty">No admins listed.</div>';
+    }).catch(function (e) { var t = $("#team"); if (t) t.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; });
     $("#chpw").addEventListener("click", function () { showAuth("fNewPass"); });
     var p = $("#purge");
     if (p) p.addEventListener("click", function () {
@@ -442,6 +576,54 @@
       rpc("purge_old_analytics", { p_days: days }).then(function (r) { toast("Deleted " + num(r.page_views) + " visits, " + num(r.events) + " clicks, " + num(r.consent_log) + " cookie records."); })
         .catch(function (e) { toast(e.message, true); }).then(function () { busy(p, false); });
     });
+    profileCard(); bindProfile();
+  }
+
+  /* company profile document: public bucket site-assets/docs/*, pointer in site_settings.company_profile */
+  var profile = null;
+  function kb(n) { n = +n || 0; return n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB"; }
+  function publicUrl(path, name) { return URL_ + "/storage/v1/object/public/" + ASSETS + "/" + path.split("/").map(encodeURIComponent).join("/") + (name ? "?download=" + encodeURIComponent(name) : ""); }
+  function profileCard() {
+    var box = $("#profNow"); if (!box) return;
+    api("/rest/v1/site_settings?select=value,updated_at,updated_by&key=eq.company_profile").then(function (rows) {
+      var r = rows && rows[0], v = (r && r.value) || {}; profile = v;
+      var ico = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8.5L19 7.5V21H6zM14 3v5h5M9 13h6M9 16h6"/></svg>';
+      box.innerHTML = v.path
+        ? '<div class="doc-row">' + ico + '<span class="who"><b>' + esc(v.filename || "Company profile.pdf") + "</b><small>" + kb(v.size) + " · uploaded " + esc(full(r.updated_at)) + (r.updated_by ? " by " + esc(r.updated_by) : "") + '</small></span><a class="btn line sm" href="' + esc(publicUrl(v.path)) + '" target="_blank" rel="noopener">Open</a></div>'
+        : '<div class="doc-row">' + ico + '<span class="who"><b>WhiteSparkConsulting_Profile_2025.pdf</b><small>Original file bundled with the website</small></span><a class="btn line sm" href="' + DEFAULT_PROFILE + '" target="_blank" rel="noopener">Open</a></div>';
+      var rs = $("#profReset"); if (rs) rs.hidden = !v.path;
+    }).catch(function (e) { box.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; });
+  }
+  function bindProfile() {
+    var up = $("#profUp"), rs = $("#profReset");
+    if (up) up.addEventListener("click", uploadProfile);
+    if (rs) rs.addEventListener("click", function () {
+      if (!confirm("Go back to the original profile bundled with the website? The uploaded file will be deleted.")) return;
+      busy(rs, true, "Restoring…");
+      var old = profile && profile.path;
+      api("/rest/v1/site_settings?key=eq.company_profile", { method: "PATCH", body: { value: {} }, prefer: "return=minimal" })
+        .then(function () { return old ? api("/storage/v1/object/" + ASSETS, { method: "DELETE", body: { prefixes: [old] } }).catch(function () {}) : null; })
+        .then(function () { toast("Original profile restored."); profileCard(); })
+        .catch(function (e) { toast(e.message, true); }).then(function () { busy(rs, false); });
+    });
+  }
+  function uploadProfile() {
+    var b = $("#profUp"), inp = $("#profFile"), f = inp && inp.files[0];
+    if (!f) { toast("Choose a PDF first.", true); return; }
+    if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") { toast("The company profile must be a PDF.", true); return; }
+    if (f.size > 15 * 1024 * 1024) { toast("That PDF is over 15 MB. Compress it and try again.", true); return; }
+    var clean = f.name.replace(/\.pdf$/i, "").normalize("NFKD").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "WhiteSparkConsulting_Profile";
+    var path = "docs/profile-" + Date.now() + ".pdf", old = profile && profile.path;
+    busy(b, true, "Uploading…");
+    fresh().then(function (tok) {
+      return fetch(URL_ + "/storage/v1/object/" + ASSETS + "/" + path, { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + tok, "Content-Type": "application/pdf", "cache-control": "31536000", "x-upsert": "false" }, body: f });
+    }).then(function (r) {
+      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || j.error || "Upload failed (" + r.status + ")"); });
+      return api("/rest/v1/site_settings?on_conflict=key", { method: "POST", body: { key: "company_profile", value: { path: path, filename: clean + ".pdf", size: f.size } }, prefer: "resolution=merge-duplicates,return=minimal" });
+    }).then(function () {
+      if (old && old !== path) api("/storage/v1/object/" + ASSETS, { method: "DELETE", body: { prefixes: [old] } }).catch(function () {});
+      toast("New company profile published."); inp.value = ""; profileCard();
+    }).catch(function (e) { toast(e.message, true); }).then(function () { busy(b, false); });
   }
 
   /* ---------- start ---------- */
@@ -450,7 +632,7 @@
     initAuth();
     $("#scrim").addEventListener("click", closeDrawer);
     doc.addEventListener("keydown", function (e) { if (e.key === "Escape") closeDrawer(); });
-    addEventListener("hashchange", function () { if (!session || $("#app").hidden) return; if (location.hash.indexOf("#enquiries/") === 0 && current === "enquiries") return; closeDrawer(); route(); });
+    addEventListener("hashchange", function () { if (!session || $("#app").hidden) return; if (location.hash.indexOf("#enquiries/") === 0 && current === "enquiries") return; if (location.hash.indexOf("#experts/") === 0 && current === "experts") return; closeDrawer(); route(); });
     doc.addEventListener("visibilitychange", function () { if (!doc.hidden && session && current === "overview") refreshBadge(); });
 
     var h = new URLSearchParams(location.hash.slice(1));

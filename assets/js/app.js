@@ -1,5 +1,6 @@
 /* White Spark Consulting — app.js (no dependencies)
-   Supabase: page_views, events, consent_log, contact_submissions + storage bucket contact-attachments */
+   Supabase: page_views, events, consent_log, contact_submissions, expert_applications, site_settings
+   Storage: contact-attachments (enquiry files), expert-cvs (CVs), site-assets (company profile) */
 (function () {
   "use strict";
   var doc = document, root = doc.documentElement;
@@ -60,6 +61,17 @@
     window.addEventListener("pageshow", function (e) { if (e.persisted) tryPlay(); });
   })();
 
+  /* ---------------- Old one-page links (/#about etc.) go to the new pages ---------------- */
+  (function legacyAnchors() {
+    if (!/^\/(index\.html)?$/.test(location.pathname)) return;
+    var h = location.hash.slice(1), go = {
+      about: "/about/", services: "/services/", sectors: "/services/#sectors", sme: "/sme/", ai: "/ai-advisory/",
+      team: "/team/", experts: "/experts/", ea: "/east-africa/",
+      "xn-phone": "/experts/#xn-phone", "xn-video": "/experts/#xn-video", "xn-reports": "/experts/#xn-reports", "xn-workshops": "/experts/#xn-workshops"
+    }[h];
+    if (go) location.replace(go);
+  })();
+
   /* ---------------- IDs & storage ---------------- */
   function uuid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -97,10 +109,10 @@
       });
     });
   }
-  function sbUpload(path, file) {
-    return fetch(CFG.supabaseUrl + "/storage/v1/object/" + CFG.attachmentBucket + "/" + path, {
+  function sbUpload(path, file, bucket, type) {
+    return fetch(CFG.supabaseUrl + "/storage/v1/object/" + (bucket || CFG.attachmentBucket) + "/" + path, {
       method: "POST",
-      headers: sbHeaders({ "Content-Type": file.type || "application/octet-stream", "x-upsert": "false", "cache-control": "3600" }),
+      headers: sbHeaders({ "Content-Type": type || file.type || "application/octet-stream", "x-upsert": "false", "cache-control": "3600" }),
       body: file
     }).then(function (r) {
       if (r.ok) return path;
@@ -212,10 +224,11 @@
       addEventListener("resize", function () { if (innerWidth > 960 && !m.hidden) set(false); });
       doc.addEventListener("click", function (e) { if (!m.hidden && !m.contains(e.target) && !t.contains(e.target)) set(false); });
     }
-    var links = $$(".nav-links a");
+    /* multi-page: the current page is marked in the HTML; only in-page (#) links need scroll-spy */
+    var links = $$(".nav-links a").filter(function (a) { return (a.getAttribute("href") || "").charAt(0) === "#"; });
     if ("IntersectionObserver" in window && links.length) {
       var map = {};
-      links.forEach(function (a) { var h = a.getAttribute("href"); if (h.charAt(0) === "#") map[h.slice(1)] = a; });
+      links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
       var io = new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
           if (!en.isIntersecting) return;
@@ -246,7 +259,7 @@
   }
 
 
-  /* ---------------- Team profiles: Read profile / Close profile ---------------- */
+  /* ---------------- Team profiles: Open profile / Close profile ---------------- */
   (function teamProfiles() {
     $$(".team-more").forEach(function (btn) {
       var card = btn.closest(".team-card"), wrap = $("#" + btn.getAttribute("aria-controls")), lbl = $("span", btn);
@@ -255,7 +268,7 @@
         var open = !card.classList.contains("is-open");
         card.classList.toggle("is-open", open);
         btn.setAttribute("aria-expanded", open ? "true" : "false");
-        lbl.textContent = open ? "Close profile" : "Read profile";
+        lbl.textContent = open ? "Close profile" : "Open profile";
         wrap.style.maxHeight = open ? wrap.scrollHeight + "px" : "";
         if (!open) {
           var top = card.getBoundingClientRect().top;
@@ -265,6 +278,39 @@
       addEventListener("resize", function () { if (card.classList.contains("is-open")) wrap.style.maxHeight = wrap.scrollHeight + "px"; }, { passive: true });
     });
   })();
+
+  /* ---------------- Expert Network: See benefits / Hide benefits ---------------- */
+  function initBenefits() {
+    $$(".xn-toggle").forEach(function (btn) {
+      var card = btn.closest(".xn-card"), panel = $("#" + btn.getAttribute("aria-controls")), lbl = $("span", btn);
+      if (!card || !panel) return;
+      function set(open) {
+        card.classList.toggle("is-open", open);
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        lbl.textContent = open ? "Hide benefits" : "See benefits";
+        panel.style.maxHeight = open ? panel.scrollHeight + "px" : "";
+      }
+      btn.addEventListener("click", function () { set(!card.classList.contains("is-open")); track("xn_benefits", card.id); });
+      addEventListener("resize", function () { if (card.classList.contains("is-open")) panel.style.maxHeight = panel.scrollHeight + "px"; }, { passive: true });
+      /* footer links jump to a service: open its benefits so the visitor lands on the full picture */
+      if (location.hash === "#" + card.id) set(true);
+      addEventListener("hashchange", function () { if (location.hash === "#" + card.id) set(true); });
+    });
+  }
+
+  /* ---------------- Company profile: admin-managed file, bundled PDF as fallback ---------------- */
+  function initProfileLink() {
+    var links = $$("[data-profile-link]"); if (!links.length || !CFG.supabaseUrl) return;
+    fetch(CFG.supabaseUrl + "/rest/v1/site_settings?key=eq.company_profile&select=value", { headers: sbHeaders({}) })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        var v = rows && rows[0] && rows[0].value;
+        if (!v || !v.path) return;
+        var name = v.filename || "WhiteSparkConsulting_Profile.pdf";
+        var url = CFG.supabaseUrl + "/storage/v1/object/public/site-assets/" + v.path.split("/").map(encodeURIComponent).join("/") + "?download=" + encodeURIComponent(name);
+        links.forEach(function (a) { a.href = url; a.setAttribute("download", name); });
+      }).catch(function () {});
+  }
 
   /* ---------------- Motion: reveal, live card beams, pointer glow ---------------- */
   function initMotion() {
@@ -389,6 +435,7 @@
     var ta = form.elements.message, count = $(".count", form);
     ta.addEventListener("input", function () { count.textContent = ta.value.length + " / 5000"; });
     $$("[data-sme]").forEach(function (a) { a.addEventListener("click", function () { form.elements.client_segment.value = "SME / growth business"; form.elements.service_interest.value = "SME advisory"; }); });
+    $$("[data-service]").forEach(function (a) { a.addEventListener("click", function () { form.elements.service_interest.value = a.getAttribute("data-service"); setErr(form.elements.service_interest, ""); }); });
 
     var fileIn = form.elements.attachment, fileBox = fileIn.closest(".file"), fileName = $(".file-name", fileBox), fileDefault = fileName.textContent;
     fileIn.addEventListener("change", function () {
@@ -508,41 +555,168 @@
     });
   }
 
-  /* ---------------- Enquiry modal ---------------- */
-  function initModal() {
-    var dlg = $("#enq-modal"); if (!dlg || typeof dlg.showModal !== "function") return;
-    var form = $("#enquiry"), sent = $("#sent"), opener = null;
+  /* ---------------- Modals: consultation (#enquiry) and expert application (#join) ---------------- */
+  function makeModal(o) {
+    var dlg = $(o.dialog); if (!dlg || typeof dlg.showModal !== "function") return null;
+    var form = $(o.form), sent = $(o.sent), opener = null;
     function open(trigger) {
+      $$("dialog[open]").forEach(function (d) { if (d !== dlg) d.close(); });
       if (dlg.open) return;
       opener = trigger || doc.activeElement;
       root.classList.add("modal-open");
       dlg.showModal(); dlg.scrollTop = 0;
-      var target = form && !form.hidden ? form.elements.full_name : sent;
+      var target = form && !form.hidden ? form.querySelector(o.first) : sent;
       if (target) target.focus({ preventScroll: true });
-      track("enquiry_open", trigger ? trigger.getAttribute("data-label") : "link");
+      track(o.event, trigger ? trigger.getAttribute("data-label") : "link");
     }
     function close() { if (dlg.open) dlg.close(); }
     dlg.addEventListener("close", function () {
-      root.classList.remove("modal-open");
-      if (location.hash === "#enquiry") history.replaceState(null, "", location.pathname + location.search);
-      // after a successful send, the next open shows a fresh form
+      if (!$("dialog[open]")) root.classList.remove("modal-open");
+      if (location.hash === o.hash) history.replaceState(null, "", location.pathname + location.search);
+      /* after a successful send, the next open shows a fresh form */
       if (sent && !sent.hidden) { var r = $("[data-reset]", sent); if (r) r.click(); }
       if (opener && opener.focus) opener.focus({ preventScroll: true });
     });
-    $$("[data-open-enquiry], a[href='#enquiry']").forEach(function (a) {
-      a.addEventListener("click", function (e) { e.preventDefault(); open(a); });
-    });
-    $$("[data-close-enquiry]", dlg).forEach(function (b) { b.addEventListener("click", close); });
-    // click on the backdrop (outside the card) closes
+    $$(o.openers).forEach(function (a) { a.addEventListener("click", function (e) { e.preventDefault(); open(a); }); });
+    $$("[data-close-modal]", dlg).forEach(function (b) { b.addEventListener("click", close); });
+    /* click on the backdrop (outside the card) closes */
     dlg.addEventListener("mousedown", function (e) { dlg._downOut = e.target === dlg; });
     dlg.addEventListener("click", function (e) { if (e.target === dlg && dlg._downOut) close(); });
-    // deep links from other pages: index.html#enquiry
-    if (location.hash === "#enquiry") setTimeout(function () { open(null); }, 0);
+    /* deep links from other pages: index.html#enquiry, index.html#join */
+    if (location.hash === o.hash) setTimeout(function () { open(null); }, 0);
+    addEventListener("hashchange", function () { if (location.hash === o.hash) open(null); });
+    return { open: open, close: close };
+  }
+  function initModals() {
+    makeModal({ dialog: "#enq-modal", form: "#enquiry", sent: "#sent", first: "[name=full_name]", hash: "#enquiry",
+      openers: "[data-open-enquiry], a[href='#enquiry']", event: "enquiry_open" });
+    makeModal({ dialog: "#xp-modal", form: "#expert", sent: "#xp-sent", first: "[name=salutation]", hash: "#join",
+      openers: "[data-open-expert], a[href='#join']", event: "expert_open" });
+  }
+
+  /* ---------------- Expert application form ---------------- */
+  var CV_TYPES = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+  function initExpertForm() {
+    var form = $("#expert"); if (!form) return;
+    var el = form.elements, msg = $(".f-msg", form), btn = $("button[type=submit]", form), sent = $("#xp-sent");
+    var ta = el.work_history, count = $(".count", form);
+    ta.addEventListener("input", function () { count.textContent = ta.value.length + " / 8000"; });
+
+    var cvIn = el.cv, cvBox = cvIn.closest(".file"), cvName = $(".file-name", cvBox), cvDefault = cvName.textContent;
+    function ext(n) { var m = /\.([A-Za-z0-9]+)$/.exec(n || ""); return m ? m[1].toLowerCase() : ""; }
+    cvIn.addEventListener("change", function () {
+      var f = cvIn.files[0];
+      cvBox.classList.toggle("has-file", !!f);
+      cvName.textContent = f ? f.name + " (" + (f.size / 1048576).toFixed(1) + " MB)" : cvDefault;
+      setErr(cvIn, f ? check(cvIn) : "");
+    });
+
+    function digits(v) { return String(v || "").replace(/[^\d]/g, "").replace(/^0+/, ""); }
+    function fieldOf(inp) { return (inp.closest && (inp.closest(".fld") || inp.closest(".consent"))) || null; }
+    function setErr(inp, text) {
+      var f = fieldOf(inp); if (!f) return;
+      f.classList.toggle("is-bad", !!text);
+      if (f.classList.contains("consent")) return;
+      var e = $(".err", f);
+      if (text) { if (!e) { e = doc.createElement("small"); e.className = "err"; f.appendChild(e); } e.textContent = text; inp.setAttribute("aria-invalid", "true"); }
+      else { if (e) e.remove(); inp.removeAttribute("aria-invalid"); }
+    }
+    function check(inp) {
+      var n = inp.name, v = (inp.value || "").trim();
+      if (n === "salutation" && !form.querySelector("input[name=salutation]:checked")) return "Choose a salutation.";
+      if ((n === "first_name" || n === "last_name") && !v) return n === "first_name" ? "Enter your first name." : "Enter your last name.";
+      if (n === "email" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return "Enter a valid email address, like name@company.com.";
+      if (n === "primary_phone" && (digits(v).length < 6 || digits(v).length > 15)) return "Enter the phone number without the country code, for example 712 345 678.";
+      if (n === "secondary_phone" && v && (digits(v).length < 6 || digits(v).length > 15)) return "Check this number, or leave it blank.";
+      if (n === "linkedin_url" && v && !/^(https?:\/\/)?([\w-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v)) return "Paste the full profile link, or leave it blank.";
+      if (n === "hourly_rate") { var r = parseFloat(v); if (!(r > 0 && r < 1000000)) return "Enter your hourly rate as a number, for example 150."; }
+      if (n === "work_history" && v.length < 30) return "Add a little more detail (at least 30 characters).";
+      if (n === "cv") {
+        var f = inp.files[0];
+        if (!f) return "Upload your CV.";
+        if (!CV_TYPES[ext(f.name)]) return "Please only upload files with extensions doc, docx or pdf.";
+        if (f.size > 10 * 1024 * 1024) return "That file is over 10 MB. Upload a smaller version.";
+      }
+      if (n === "consent_given" && !inp.checked) return "Tick the box so we can review your application.";
+      return "";
+    }
+    var order = ["salutation", "first_name", "last_name", "email", "primary_phone", "secondary_phone", "linkedin_url", "hourly_rate", "work_history", "cv", "consent_given"];
+    function inputOf(n) { return n === "salutation" ? form.querySelector("input[name=salutation]") : el[n]; }
+    order.forEach(function (n) {
+      if (n === "salutation") {
+        $$("input[name=salutation]", form).forEach(function (r) { r.addEventListener("change", function () { setErr(inputOf("salutation"), ""); }); });
+        return;
+      }
+      var inp = el[n]; if (!inp || n === "cv") return;
+      inp.addEventListener("blur", function () { if (inp.value || inp.type === "checkbox") setErr(inp, check(inp)); });
+      inp.addEventListener("input", function () { var f = fieldOf(inp); if (f && f.classList.contains("is-bad")) setErr(inp, check(inp)); });
+      inp.addEventListener("change", function () { var f = fieldOf(inp); if (f && f.classList.contains("is-bad")) setErr(inp, check(inp)); });
+    });
+
+    function busy(on) {
+      btn.setAttribute("aria-busy", on ? "true" : "false"); btn.disabled = !!on;
+      $(".b-txt", btn).textContent = on ? "Submitting…" : "Submit application";
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      msg.textContent = ""; msg.classList.remove("is-info");
+      var firstBad = null;
+      order.forEach(function (n) { var inp = inputOf(n), err = check(inp); setErr(inp, err); if (err && !firstBad) firstBad = inp; });
+      if (firstBad) {
+        firstBad.focus({ preventScroll: false });
+        msg.textContent = "Check the highlighted fields and try again.";
+        track("form_error", "expert_validation", null, { field: firstBad.name });
+        return;
+      }
+      if (el.website.value) { done(el.email.value); return; } // honeypot
+
+      var val = function (n) { var v = (el[n].value || "").trim(); return v || null; };
+      var li = val("linkedin_url"); if (li && !/^https?:\/\//i.test(li)) li = "https://" + li;
+      var sec = digits(el.secondary_phone.value);
+      var row = {
+        salutation: form.querySelector("input[name=salutation]:checked").value,
+        first_name: val("first_name"), last_name: val("last_name"), email: val("email"),
+        country_code: el.country_code.value, primary_phone: digits(el.primary_phone.value), secondary_phone: sec || null,
+        sector: val("sector"), linkedin_url: li,
+        hourly_rate: Math.round(parseFloat(el.hourly_rate.value) * 100) / 100, rate_currency: el.rate_currency.value,
+        work_history: val("work_history"), consent_given: true,
+        source_path: cut(location.pathname + location.search, 512), session_id: SESSION, visitor_id: visitor()
+      };
+      var f = el.cv.files[0], x = ext(f.name);
+      busy(true); msg.classList.add("is-info"); msg.textContent = "Uploading your CV…";
+      sbUpload("cv/" + uuid() + "/" + safeName(f.name), f, "expert-cvs", CV_TYPES[x]).then(function (path) {
+        row.cv_path = path; msg.textContent = "";
+        return sbInsert("expert_applications", row);
+      }).then(function () {
+        track("form_submit", "expert_application", null, { sector: row.sector || "", currency: row.rate_currency });
+        done(row.email);
+      }).catch(function (err) {
+        busy(false); msg.classList.remove("is-info");
+        var m = (err && err.message) || "";
+        if (/already have your application|privacy notice/.test(m)) msg.textContent = m;
+        else if (/Failed to fetch|NetworkError|network/i.test(m)) msg.textContent = "You appear to be offline. Check your connection and submit again.";
+        else if (/upload|mime|size|exceeded|payload/i.test(m)) msg.textContent = "Your CV could not be uploaded. Save it as PDF or Word under 10 MB and try again.";
+        else msg.innerHTML = "The application did not go through. Submit again, or email your CV to <a href=\"mailto:" + CFG.email + "\">" + CFG.email + "</a>.";
+        track("form_error", "expert_submit", null, { code: err && err.code ? String(err.code) : "unknown" });
+      });
+    });
+
+    function done(email) {
+      busy(false);
+      $("[data-sent-email]", sent).textContent = email;
+      form.hidden = true; sent.hidden = false; sent.focus();
+    }
+    $("[data-reset]", sent).addEventListener("click", function () {
+      form.reset(); count.textContent = "0 / 8000"; cvBox.classList.remove("has-file"); cvName.textContent = cvDefault;
+      $$(".is-bad", form).forEach(function (f) { f.classList.remove("is-bad"); }); $$(".err", form).forEach(function (e) { e.remove(); });
+      msg.textContent = ""; sent.hidden = true; form.hidden = false; var r = form.querySelector("input[name=salutation]"); if (r) r.focus();
+    });
   }
 
   /* ---------------- Boot ---------------- */
   function boot() {
-    applyConfig(); initNav(); initMotion(); initMap(); initConsent(); initCounters(); initForm(); initModal(); initClickTracking();
+    applyConfig(); initNav(); initMotion(); initMap(); initConsent(); initCounters(); initForm(); initExpertForm(); initBenefits(); initModals(); initProfileLink(); initClickTracking();
     var nf = doc.body.getAttribute("data-status") === "404";
     pageView(nf ? 404 : 200);
     if (nf) track("not_found", location.pathname);

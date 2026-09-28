@@ -1,6 +1,6 @@
 {
   "cleanUrls": false,
-  "trailingSlash": false,
+  "trailingSlash": true,
   "redirects": [
     {
       "source": "/index.html",
@@ -13,43 +13,33 @@
       "permanent": true
     },
     {
-      "source": "/about",
-      "destination": "/#about",
-      "permanent": true
-    },
-    {
-      "source": "/services",
-      "destination": "/#services",
-      "permanent": true
-    },
-    {
-      "source": "/sme",
-      "destination": "/#sme",
-      "permanent": true
-    },
-    {
       "source": "/ai",
-      "destination": "/#ai",
-      "permanent": true
-    },
-    {
-      "source": "/team",
-      "destination": "/#team",
-      "permanent": true
-    },
-    {
-      "source": "/process",
-      "destination": "/#process",
+      "destination": "/ai-advisory/",
       "permanent": true
     },
     {
       "source": "/markets",
-      "destination": "/#ea",
+      "destination": "/east-africa/",
       "permanent": true
     },
     {
-      "source": "/east-africa",
-      "destination": "/#ea",
+      "source": "/smes",
+      "destination": "/sme/",
+      "permanent": true
+    },
+    {
+      "source": "/expert-network",
+      "destination": "/experts/",
+      "permanent": true
+    },
+    {
+      "source": "/join",
+      "destination": "/experts/#join",
+      "permanent": false
+    },
+    {
+      "source": "/process",
+      "destination": "/#process",
       "permanent": true
     },
     {
@@ -59,7 +49,7 @@
     },
     {
       "source": "/contact",
-      "destination": "/#contact",
+      "destination": "/#enquiry",
       "permanent": true
     },
     {
