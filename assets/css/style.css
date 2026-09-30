@@ -758,3 +758,5 @@ html.modal-open{overflow:hidden;}
   .xp-name{font-size:13.5px;}
 }
 @media (max-width:360px){ .explore-grid{grid-template-columns:1fr;} }
+
+.ft .cta-lines{margin:12px 0 0;width:100%;max-width:none;align-items:flex-start}.ft .cta-lines a{color:var(--gold)}.ft .cta-lines a:hover{color:var(--gold-lt)}
